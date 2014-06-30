@@ -4,22 +4,34 @@ import (
 	"database/sql"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
+	"log"
 	"strconv"
 	"strings"
 	"time"
 )
 
+// MysqlQuery is a generic query builder for mysql,
+// without using structs...
+// For determining data types, it uses implicit
+// MySQL describe, or must suply a map[string][string]
+// field name, desired type...
+// Without cols, it returns strings for each field
+
+//@todo handle 000-00-00 00:00 dates
+
 type MysqlQuery struct {
-	db     *sql.DB
+	Db     *sql.DB
 	Query  string
 	Cols   map[string]string
 	Table  string
-	Result []*RRow
+	Result []RRow
 }
 
+// RRow is a rresult row
 type RRow map[string]interface{}
 
-func (t MysqlQuery) GetData() error {
+// GetData Returns an slice of RRow data, json serializable
+func (t *MysqlQuery) GetData() error {
 	var query string
 	if t.Query != "" {
 		query = t.Query
@@ -27,7 +39,7 @@ func (t MysqlQuery) GetData() error {
 		query = fmt.Sprintf("SELECT * FROM %s", t.Table)
 	}
 
-	rows, err := t.db.Query(query)
+	rows, err := t.Db.Query(query)
 	if err != nil {
 		return err
 	}
@@ -51,6 +63,8 @@ func (t MysqlQuery) GetData() error {
 		scanArgs[i] = values[columns[i]]
 	}
 
+	//t.Result = make([]RRow, 0)
+
 	for rows.Next() {
 		var r = make(RRow)
 		err = rows.Scan(scanArgs...)
@@ -63,7 +77,9 @@ func (t MysqlQuery) GetData() error {
 			if t.Cols[c] != "bytes" {
 				r[c], err = TypeConvert(string(*val), t.Cols[c])
 				if err != nil {
-					return err
+					//return errors.New(fmt.Sprintf("Error parsing %s, %s", c, err))
+					log.Println(fmt.Sprintf("Error parsing %s, %s", c, err))
+					r[c] = string(*val)
 				}
 			} else {
 				r[c] = *val
@@ -71,9 +87,11 @@ func (t MysqlQuery) GetData() error {
 		}
 
 		//fmt.Printf("%#v", r)
-		t.Result = append(t.Result, &r)
-
+		t.Result = append(t.Result, r)
+		//fmt.Printf("%#v", t.Result)
 	}
+
+	//fmt.Printf("%#v", t.Result)
 
 	return nil
 
@@ -81,9 +99,9 @@ func (t MysqlQuery) GetData() error {
 
 // GetTypesFromTable scans mysql table for trying to know
 // which types must export during json marshall
-func (t MysqlQuery) GetTypesFromTable() error {
+func (t *MysqlQuery) GetTypesFromTable() error {
 	query := fmt.Sprintf("DESCRIBE %s", t.Table)
-	rows, err := t.db.Query(query)
+	rows, err := t.Db.Query(query)
 	if err != nil {
 		return err
 	}

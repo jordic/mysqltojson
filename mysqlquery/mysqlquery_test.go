@@ -119,7 +119,7 @@ func TestGetTypesFromTable(t *testing.T) {
 	runTests(t, dsn, func(dbt *DBTest) {
 		createTableTest(dbt)
 		jd := &MysqlQuery{
-			db:    dbt.db,
+			Db:    dbt.db,
 			Table: "test",
 			Cols:  make(map[string]string),
 		}
@@ -145,7 +145,7 @@ func TestGetData(t *testing.T) {
 		dbt.db.Exec(INSERT_SQL)
 
 		jd := &MysqlQuery{
-			db:    dbt.db,
+			Db:    dbt.db,
 			Table: "test",
 			Cols:  make(map[string]string),
 		}
